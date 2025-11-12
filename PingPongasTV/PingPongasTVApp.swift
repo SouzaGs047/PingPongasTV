@@ -9,10 +9,11 @@ import SwiftUI
 import SwiftData
 
 @main
-struct PingPongas2App: App {
+struct PingPongasTVApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
-            Item.self,
+            PlayerModel.self,
+            GameModel.self
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 

@@ -7,13 +7,13 @@
 	objects = {
 
 /* Begin PBXFileReference section */
-		BDEFDB322EC3ADEB0023A531 /* PingPongas2.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PingPongas2.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		BDEFDB322EC3ADEB0023A531 /* PingPongasTV.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PingPongasTV.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		BDEFDB342EC3ADEB0023A531 /* PingPongas2 */ = {
+		BDEFDB342EC3ADEB0023A531 /* PingPongasTV */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = PingPongas2;
+			path = PingPongasTV;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -32,7 +32,7 @@
 		BDEFDB292EC3ADEB0023A531 = {
 			isa = PBXGroup;
 			children = (
-				BDEFDB342EC3ADEB0023A531 /* PingPongas2 */,
+				BDEFDB342EC3ADEB0023A531 /* PingPongasTV */,
 				BDEFDB332EC3ADEB0023A531 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -40,7 +40,7 @@
 		BDEFDB332EC3ADEB0023A531 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				BDEFDB322EC3ADEB0023A531 /* PingPongas2.app */,
+				BDEFDB322EC3ADEB0023A531 /* PingPongasTV.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -48,9 +48,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		BDEFDB312EC3ADEB0023A531 /* PingPongas2 */ = {
+		BDEFDB312EC3ADEB0023A531 /* PingPongasTV */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = BDEFDB3F2EC3ADEC0023A531 /* Build configuration list for PBXNativeTarget "PingPongas2" */;
+			buildConfigurationList = BDEFDB3F2EC3ADEC0023A531 /* Build configuration list for PBXNativeTarget "PingPongasTV" */;
 			buildPhases = (
 				BDEFDB2E2EC3ADEB0023A531 /* Sources */,
 				BDEFDB2F2EC3ADEB0023A531 /* Frameworks */,
@@ -61,13 +61,13 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				BDEFDB342EC3ADEB0023A531 /* PingPongas2 */,
+				BDEFDB342EC3ADEB0023A531 /* PingPongasTV */,
 			);
-			name = PingPongas2;
+			name = PingPongasTV;
 			packageProductDependencies = (
 			);
 			productName = PingPongas2;
-			productReference = BDEFDB322EC3ADEB0023A531 /* PingPongas2.app */;
+			productReference = BDEFDB322EC3ADEB0023A531 /* PingPongasTV.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -85,7 +85,7 @@
 					};
 				};
 			};
-			buildConfigurationList = BDEFDB2D2EC3ADEB0023A531 /* Build configuration list for PBXProject "PingPongas2" */;
+			buildConfigurationList = BDEFDB2D2EC3ADEB0023A531 /* Build configuration list for PBXProject "PingPongasTV" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -99,7 +99,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				BDEFDB312EC3ADEB0023A531 /* PingPongas2 */,
+				BDEFDB312EC3ADEB0023A531 /* PingPongasTV */,
 			);
 		};
 /* End PBXProject section */
@@ -264,23 +264,25 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
+				IPHONEOS_DEPLOYMENT_TARGET = 26;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 26.1;
+				MACOSX_DEPLOYMENT_TARGET = 26;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = br.com.academy.PingPongas2;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "appletvos appletvsimulator";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TARGETED_DEVICE_FAMILY = 3;
+				TVOS_DEPLOYMENT_TARGET = 18.6;
 				XROS_DEPLOYMENT_TARGET = 26.1;
 			};
 			name = Debug;
@@ -308,23 +310,25 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
+				IPHONEOS_DEPLOYMENT_TARGET = 26;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 26.1;
+				MACOSX_DEPLOYMENT_TARGET = 26;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = br.com.academy.PingPongas2;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "appletvos appletvsimulator";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TARGETED_DEVICE_FAMILY = 3;
+				TVOS_DEPLOYMENT_TARGET = 18.6;
 				XROS_DEPLOYMENT_TARGET = 26.1;
 			};
 			name = Release;
@@ -332,7 +336,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		BDEFDB2D2EC3ADEB0023A531 /* Build configuration list for PBXProject "PingPongas2" */ = {
+		BDEFDB2D2EC3ADEB0023A531 /* Build configuration list for PBXProject "PingPongasTV" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				BDEFDB3D2EC3ADEC0023A531 /* Debug */,
@@ -341,7 +345,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		BDEFDB3F2EC3ADEC0023A531 /* Build configuration list for PBXNativeTarget "PingPongas2" */ = {
+		BDEFDB3F2EC3ADEC0023A531 /* Build configuration list for PBXNativeTarget "PingPongasTV" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				BDEFDB402EC3ADEC0023A531 /* Debug */,
