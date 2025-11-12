@@ -1,6 +1,6 @@
 //
-//  Item.swift
-//  PingPongas2
+//  PlayerModel.swift
+//  PingPongasTV
 //
 //  Created by Gustavo Souza Santana on 11/11/25.
 //
