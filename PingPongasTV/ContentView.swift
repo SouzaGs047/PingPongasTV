@@ -14,7 +14,7 @@ struct ContentView: View {
         VStack {
             Text("Game Server (Apple TV)")
                 .font(.largeTitle)
-            
+
             HStack {
                 VStack {
                     Text("Lado Esquerdo")
@@ -33,11 +33,6 @@ struct ContentView: View {
                     }
                 }
                 .frame(maxWidth: .infinity)
-            }
-            .padding()
-
-            Button("Enviar teste para todos") {
-                server.broadcast(message: "Olá iPhones!")
             }
             .padding()
         }
