@@ -4,9 +4,8 @@
 //
 //  Created by Gustavo Souza Santana on 11/11/25.
 //
-//  CORRIGIDO: 'Hashable' e 'contentProcessed'
 //
-
+//
 
 import Foundation
 import Network
@@ -19,13 +18,10 @@ class GameServer: ObservableObject {
     private var listener: NWListener?
     private var isListening = false
     
-    // --- CORREÇÃO 1: Invertemos o dicionário ---
-    // Em vez de [NWConnection: Int], usamos [Int: NWConnection]
-    // A chave (Int) é 'Hashable', o que conserta os erros 1, 2 e 3.
-    private var players: [Int: NWConnection] = [:] // [PlayerIndex: Connection]
+    private var players: [Int: NWConnection] = [:]
     private let maxPlayers = 2
     
-    // --- ESTADO DO JOGO (Para a View) ---
+    //  ESTADO DO JOGO
     @Published var paddleLeftY: CGFloat = 0
     @Published var paddleRightY: CGFloat = 0
     @Published var ballPosition: CGPoint = .zero
@@ -33,7 +29,7 @@ class GameServer: ObservableObject {
     @Published var scoreRight: Int = 0
     @Published var isGameRunning = false
     
-    // --- Propriedades do Jogo/Física ---
+    //  Propriedades do Jogo
     private var gameTimer: AnyCancellable?
     private var ballVelocity = CGVector(dx: 6, dy: 4)
     private var sceneSize: CGSize = .zero
@@ -41,8 +37,6 @@ class GameServer: ObservableObject {
     private let paddleWidth: CGFloat = 20
     private let ballSize: CGFloat = 20
 
-    
-    // --- Lógica de Rede ---
     
     func start(screenSize: CGSize) {
         guard !isListening else { return }
@@ -94,10 +88,7 @@ class GameServer: ObservableObject {
             return
         }
         
-        let playerIndex = players.count // 0 ou 1
-        
-        // --- CORREÇÃO 1 (Continuação) ---
-        // Armazena [0: Conexao0] ou [1: Conexao1]
+        let playerIndex = players.count
         players[playerIndex] = connection
         
         print("Cliente é Jogador \(playerIndex)")
@@ -128,12 +119,9 @@ class GameServer: ObservableObject {
     }
     
     private func handleClientDisconnect(_ connection: NWConnection) {
-        // --- CORREÇÃO 1 (Continuação) ---
-        // Precisamos encontrar o jogador por 'connection'
-        // Iteramos no dicionário e comparamos a 'value' (a conexão)
         if let playerIndex = players.first(where: { $0.value === connection })?.key {
             print("Jogador \(playerIndex) desconectou.")
-            players.removeValue(forKey: playerIndex) // Remove pelo índice
+            players.removeValue(forKey: playerIndex)
         } else {
             print("Cliente desconectado não era um jogador ativo.")
         }
@@ -159,11 +147,7 @@ class GameServer: ObservableObject {
         }
     }
     
-    // --- Lógica de Input ---
-    
     private func handlePlayerInput(command: String, from connection: NWConnection) {
-        // --- CORREÇÃO 1 (Continuação) ---
-        // Encontra o playerIndex baseado na conexão
         guard let playerIndex = players.first(where: { $0.value === connection })?.key else { return }
         
         let moveAmount: CGFloat = 25.0
@@ -173,7 +157,7 @@ class GameServer: ObservableObject {
         let bottomBound = (sceneSize.height / 2) - halfPaddle
         
         DispatchQueue.main.async {
-            if playerIndex == 0 { // Jogador Esquerda
+            if playerIndex == 0 {
                 var newY = self.paddleLeftY
                 if command == "up" {
                     newY -= moveAmount
@@ -182,7 +166,7 @@ class GameServer: ObservableObject {
                 }
                 self.paddleLeftY = min(max(newY, topBound), bottomBound)
                 
-            } else if playerIndex == 1 { // Jogador Direita
+            } else if playerIndex == 1 {
                 var newY = self.paddleRightY
                 if command == "up" {
                     newY -= moveAmount
@@ -193,8 +177,6 @@ class GameServer: ObservableObject {
             }
         }
     }
-
-    // --- Lógica do "Game Loop" (sem alterações) ---
     
     func startGameLoop() {
         guard !isGameRunning else { return }
@@ -266,13 +248,7 @@ class GameServer: ObservableObject {
     
     func broadcast(message: String) {
         let data = message.data(using: .utf8)!
-        
-        // --- CORREÇÃO 1 (Continuação) ---
-        // Itera sobre os 'values' do dicionário (as conexões)
         for (_, client) in players {
-            
-            // --- CORREÇÃO 4 ---
-            // Usamos o tipo completo para evitar o erro de inferência
             client.send(content: data, completion: NWConnection.SendCompletion.contentProcessed { _ in })
         }
     }
