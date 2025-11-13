@@ -1,11 +1,12 @@
 //
 //  GameServer.swift
-//  PingPongas2
+//  PingPongasTV
 //
 //  Created by Gustavo Souza Santana on 11/11/25.
 //
 //  CORRIGIDO: 'Hashable' e 'contentProcessed'
 //
+
 
 import Foundation
 import Network
@@ -54,8 +55,8 @@ class GameServer: ObservableObject {
         self.scoreRight = 0
         
         isListening = true
-        print("Iniciando listener...")
         
+        print("Iniciando listener...")
         let params = NWParameters.tcp
         params.allowLocalEndpointReuse = true
         
@@ -65,27 +66,27 @@ class GameServer: ObservableObject {
             print("Erro ao iniciar listener:", error)
             return
         }
-
+        
         listener?.service = NWListener.Service(
             name: "AppleTV-PoC",
             type: "_pocgame._tcp",
             domain: nil,
             txtRecord: nil
         )
-
+        
         listener?.stateUpdateHandler = { state in
             print("Listener mudou:", state)
         }
-
+        
         listener?.newConnectionHandler = { [weak self] connection in
             print("Novo iPhone conectado:", connection)
             self?.setupClient(connection)
         }
-
+        
         listener?.start(queue: .main)
         print("Servidor iniciado e anunciado via Bonjour.")
     }
-
+    
     private func setupClient(_ connection: NWConnection) {
         guard players.count < maxPlayers else {
             print("Jogo cheio, rejeitando conexão.")
@@ -110,7 +111,7 @@ class GameServer: ObservableObject {
                 break
             }
         }
-
+        
         connection.start(queue: .main)
         receive(connection)
 
@@ -125,7 +126,7 @@ class GameServer: ObservableObject {
             }
         }
     }
-
+    
     private func handleClientDisconnect(_ connection: NWConnection) {
         // --- CORREÇÃO 1 (Continuação) ---
         // Precisamos encontrar o jogador por 'connection'
@@ -144,14 +145,12 @@ class GameServer: ObservableObject {
             start(screenSize: self.sceneSize)
         }
     }
-
+    
     private func receive(_ connection: NWConnection) {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 2048) { [weak self] data, _, _, error in
-            
             if let data = data, let str = String(data: data, encoding: .utf8) {
                 self?.handlePlayerInput(command: str, from: connection)
             }
-
             if error == nil {
                 self?.receive(connection)
             } else {
