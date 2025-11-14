@@ -4,7 +4,7 @@
 //
 //  Created by Gustavo Souza Santana on 11/11/25.
 //
-//  MODIFICADO: Agora é a tela do jogo (View)
+//
 //
 
 import SwiftUI
