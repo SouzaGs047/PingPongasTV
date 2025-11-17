@@ -4,8 +4,9 @@
 //
 //  Created by Gustavo Souza Santana on 11/11/25.
 //
+//  CORRIGIDO: 'Hashable' e 'contentProcessed'
 //
-//
+
 
 import Foundation
 import Network
@@ -31,7 +32,7 @@ class GameServer: ObservableObject {
     @Published var scoreRight: Int = 0
     @Published var isGameRunning = false
     
-    //  Propriedades do Jogo
+    // --- Propriedades do Jogo/Física ---
     private var gameTimer: AnyCancellable?
     private var ballVelocity = CGVector(dx: 6, dy: 4)
     private var sceneSize: CGSize = .zero
@@ -39,6 +40,8 @@ class GameServer: ObservableObject {
     let paddleWidth: CGFloat = 20
     let ballSize: CGFloat = 20
 
+    
+    // --- Lógica de Rede ---
     
     func start(screenSize: CGSize) {
         guard !isListening else { return }
@@ -263,8 +266,6 @@ class GameServer: ObservableObject {
     // --- Lógica de Input ---
     
     private func handlePlayerInput(command: String, from connection: NWConnection) {
-        guard let playerIndex = players.first(where: { $0.value === connection })?.key else { return }
-        
         let moveAmount: CGFloat = 25.0
         let halfPaddle = paddleHeight / 2
         
@@ -283,7 +284,6 @@ class GameServer: ObservableObject {
         
         DispatchQueue.main.async {
             if side == "left" {
-            if playerIndex == 0 {
                 var newY = self.paddleLeftY
                 if command == "up" {
                     newY -= moveAmount
@@ -350,9 +350,6 @@ class GameServer: ObservableObject {
 
 
     // --- Lógica do "Game Loop" (sem alterações) ---
-            }
-        }
-    }
     
     func startGameLoop() {
         guard !isGameRunning else { return }
