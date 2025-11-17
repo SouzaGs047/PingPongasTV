@@ -35,7 +35,7 @@ class GameServer: ObservableObject {
     // --- Propriedades do Jogo/Física ---
     private var gameTimer: AnyCancellable?
     private var ballVelocity = CGVector(dx: 6, dy: 4)
-    private var sceneSize: CGSize = .zero
+    var sceneSize: CGSize = .zero
     let paddleHeight: CGFloat = 100
     let paddleWidth: CGFloat = 20
     let ballSize: CGFloat = 20
@@ -48,10 +48,14 @@ class GameServer: ObservableObject {
         
         self.sceneSize = screenSize
         self.ballPosition = CGPoint(x: screenSize.width / 2, y: screenSize.height / 2)
-        self.paddleLeftY = 0
-        self.paddleRightY = 0
+        
+        // Y ABSOLUTO (centro da tela)
+        self.paddleLeftY  = screenSize.height / 2
+        self.paddleRightY = screenSize.height / 2
+        
         self.scoreLeft = 0
         self.scoreRight = 0
+        
         
         isListening = true
         
@@ -269,12 +273,12 @@ class GameServer: ObservableObject {
         let moveAmount: CGFloat = 25.0
         let halfPaddle = paddleHeight / 2
         
-        let topBound = -(sceneSize.height / 2) + halfPaddle
-        let bottomBound = (sceneSize.height / 2) - halfPaddle
+        // limites para o centro da raquete
+        let minY = halfPaddle
+        let maxY = sceneSize.height - halfPaddle
 
         let id = ObjectIdentifier(connection)
         
-        // Descobre o lado desse connection com base no JOIN
         guard let info = connectionToPlayer[id] else {
             print("⚠️ handlePlayerInput: conexão sem side associado (JOIN não recebido?)")
             return
@@ -290,7 +294,7 @@ class GameServer: ObservableObject {
                 } else if command == "down" {
                     newY += moveAmount
                 }
-                self.paddleLeftY = min(max(newY, topBound), bottomBound)
+                self.paddleLeftY = min(max(newY, minY), maxY)
                 
             } else if side == "right" {
                 var newY = self.paddleRightY
@@ -299,12 +303,12 @@ class GameServer: ObservableObject {
                 } else if command == "down" {
                     newY += moveAmount
                 }
-                self.paddleRightY = min(max(newY, topBound), bottomBound)
-            } else {
-                print("⚠️ Lado desconhecido: \(side)")
+                self.paddleRightY = min(max(newY, minY), maxY)
             }
         }
     }
+
+
 
 
     
@@ -390,38 +394,37 @@ class GameServer: ObservableObject {
             height: ballSize
         )
         
-        // 4. Raquetes
-        let leftPaddleCenterY = paddleLeftY + (sceneSize.height / 2)
-        let rightPaddleCenterY = paddleRightY + (sceneSize.height / 2)
+        // 4. Raquetes – Y já é o centro absoluto
+        let leftPaddleCenterY  = paddleLeftY
+        let rightPaddleCenterY = paddleRightY
 
         let paddleLeftRect = CGRect(
             x: 50,
-            y: leftPaddleCenterY - (paddleHeight/2),
+            y: leftPaddleCenterY - (paddleHeight / 2),
             width: paddleWidth,
             height: paddleHeight
         )
 
         let paddleRightRect = CGRect(
             x: sceneSize.width - 50 - paddleWidth,
-            y: rightPaddleCenterY - (paddleHeight/2),
+            y: rightPaddleCenterY - (paddleHeight / 2),
             width: paddleWidth,
             height: paddleHeight
         )
         
-        // 5. Colisão com raquete esquerda (bola vindo da direita → esquerda)
+        // 5. Colisão com raquete esquerda
         if ballRect.intersects(paddleLeftRect) && ballVelocity.dx < 0 {
-            // empurra a bola pra fora da raquete pra evitar "grudar"
             ballPosition.x = paddleLeftRect.maxX + ballRadius
             ballVelocity.dx *= -1
         }
         
-        // 6. Colisão com raquete direita (bola vindo da esquerda → direita)
+        // 6. Colisão com raquete direita
         if ballRect.intersects(paddleRightRect) && ballVelocity.dx > 0 {
             ballPosition.x = paddleRightRect.minX - ballRadius
             ballVelocity.dx *= -1
         }
         
-        // 7. Pontuação (usa retângulo da bola também se quiser)
+        // 7. Pontuação
         if ballRect.maxX < 0 {
             scoreRight += 1
             resetBall(direction: 1)
@@ -441,13 +444,15 @@ class GameServer: ObservableObject {
         ballVelocity.dx = 6 * CGFloat(direction)
         ballVelocity.dy = [4, -4, 3, -3].randomElement() ?? 4
         
-        paddleLeftY = 0
-        paddleRightY = 0
+        // volta as raquetes pro centro visual
+        paddleLeftY  = sceneSize.height / 2
+        paddleRightY = sceneSize.height / 2
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             self.startGameLoop()
         }
     }
+
     
     func broadcast(message: String) {
         let data = message.data(using: .utf8)!
