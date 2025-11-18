@@ -2,8 +2,8 @@
 //  GameView.swift
 //  PingPongasTV
 //
-//  Created by Gustavo Souza Santana on 13/11/25.
-//
+//  Created by Gustavo Souza Santana.
+//  Created by Ruan Lopes Viana.
 
 import SwiftUI
 
@@ -17,127 +17,144 @@ struct GameView: View {
     
     var body: some View {
         GeometryReader { geometry in
-            let squareSide = min(geometry.size.width, geometry.size.height)
-
             ZStack {
                 Color.black.ignoresSafeArea()
-
-                // Quadrado do Pong
-                ZStack {
-                    let w = server.sceneSize.width
-                    let h = server.sceneSize.height
-
+                
+                if server.sceneSize.width > 0 && server.sceneSize.height > 0 {
+                    
+                    // Área do Jogo
                     ZStack {
-                        // Linha pontilhada do meio
+                        let w = server.sceneSize.width
+                        let h = server.sceneSize.height
+                        
+                        // 1. Linha pontilhada do meio
                         ForEach(0..<20) { i in
                             if i % 2 == 0 {
                                 Rectangle()
-                                    .fill(Color.white)
-                                    .frame(width: 4, height: 20)
+                                    .fill(Color.white.opacity(0.5))
+                                    .frame(width: 4, height: h / 40)
                                     .position(
                                         x: w / 2,
                                         y: (h / 19) * CGFloat(i)
                                     )
                             }
                         }
-
-                        // Placar
-                        HStack(spacing: 100) {
+                        
+                        // 2. Placar
+                        HStack(spacing: 150) {
                             Text("\(server.scoreLeft)")
-                                .font(.system(size: 80, weight: .bold))
-                                .foregroundColor(.white)
                             Text("\(server.scoreRight)")
-                                .font(.system(size: 80, weight: .bold))
-                                .foregroundColor(.white)
                         }
-                        .position(x: w / 2, y: 60)
-
-                        // Raquete esquerda
+                        .font(.system(size: 100, weight: .bold, design: .monospaced))
+                        .foregroundColor(.white)
+                        .position(x: w / 2, y: 100)
+                        
+                        // 3. Raquete Esquerda
                         Rectangle()
                             .fill(Color.white)
-                            .frame(width: server.paddleWidth,
-                                   height: server.paddleHeight)
+                            .frame(width: server.paddleWidth, height: server.paddleHeight)
                             .position(
                                 x: 50 + server.paddleWidth / 2,
                                 y: server.paddleLeftY
                             )
-
-                        // Raquete direita  👉 AGORA usando w, não geometry.size.width
+                        
+                        // 4. Raquete Direita
                         Rectangle()
                             .fill(Color.white)
-                            .frame(width: server.paddleWidth,
-                                   height: server.paddleHeight)
+                            .frame(width: server.paddleWidth, height: server.paddleHeight)
                             .position(
                                 x: w - 50 - server.paddleWidth / 2,
                                 y: server.paddleRightY
                             )
-
-                        // Bola
+                        
+                        // 5. Bola
                         if server.isGameRunning {
                             Rectangle()
                                 .fill(Color.white)
                                 .frame(width: server.ballSize, height: server.ballSize)
                                 .position(server.ballPosition)
                         }
-
-                        // Mensagens e countdown (use w/h também)
-                        if !server.isGameRunning &&
-                            server.scoreLeft == 0 &&
-                            server.scoreRight == 0 &&
-                            !isCountingDown {
-
-                            Text("Esperando jogadores...")
-                                .font(.title)
-                                .foregroundColor(.white)
-                                .position(x: w / 2, y: h / 2)
+                        
+                        // 6. Mensagens de Estado (Esperando Jogadores)
+                        if !server.isGameRunning && server.scoreLeft == 0 && server.scoreRight == 0 && !isCountingDown {
+                            VStack(spacing: 20) {
+                                Text("PONG")
+                                    .font(.system(size: 120, weight: .heavy))
+                                    .foregroundColor(.white)
+                                
+                                Text("Aguardando Jogadores...")
+                                    .font(.title)
+                                    .foregroundColor(.gray)
+                                
+                                Text("Conecte-se pelo iPhone")
+                                    .font(.headline)
+                                    .foregroundColor(.white.opacity(0.5))
+                            }
+                            .position(x: w / 2, y: h / 2)
                         }
-
+                        
+                        // 7. Countdown
                         if isCountingDown {
                             Text("\(countdown)")
-                                .font(.system(size: 120, weight: .bold))
-                                .foregroundColor(.white)
+                                .font(.system(size: 200, weight: .heavy))
+                                .foregroundColor(.yellow)
                                 .shadow(radius: 10)
                                 .position(x: w / 2, y: h / 2)
                         }
                     }
+                } else {
+                    // Tela de Carregamento
+                    Text("Inicializando...")
+                        .foregroundColor(.white)
                 }
-                .frame(width: squareSide, height: squareSide)
-                .position(x: geometry.size.width / 2.2,
-                          y: geometry.size.height / 2)
             }
             .onAppear {
-                if !hasInitialized {
-                    hasInitialized = true
-                    let playfieldSize = CGSize(width: squareSide, height: squareSide)
-                    server.start(screenSize: playfieldSize)
-                    startCountdown()
+                if geometry.size.width > 0 {
+                    print("📺 Tamanho detectado: \(geometry.size)")
+                    server.sceneSize = geometry.size
+                    server.start(screenSize: geometry.size)
+                    
+                    if !hasInitialized {
+                        hasInitialized = true
+                        startCountdown()
+                    }
+                }
+            }
+            .onChange(of: geometry.size) { newSize in
+                if newSize.width > 0 && server.sceneSize == .zero {
+                    print("📺 Tamanho atualizado: \(newSize)")
+                    server.sceneSize = newSize
+                    server.start(screenSize: newSize)
+                    
+                    if !hasInitialized {
+                        hasInitialized = true
+                        startCountdown()
+                    }
+                }
+            }
+            .ignoresSafeArea()
+            .onChange(of: server.allPlayersReady) { newValue in
+                if newValue == false {
+                    server.stopGameLoop()
+                    dismiss()
                 }
             }
         }
-        .onChange(of: server.allPlayersReady) { newValue in
-            if newValue == false {
-                server.stopGameLoop()
-                dismiss()
+    }
+        
+        private func startCountdown() {
+            countdown = 3
+            isCountingDown = true
+            server.stopGameLoop()
+            
+            Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in
+                if countdown > 1 {
+                    countdown -= 1
+                } else {
+                    timer.invalidate()
+                    isCountingDown = false
+                    server.startGameLoop()
+                }
             }
         }
     }
-    
-    private func startCountdown() {
-        countdown = 3
-        isCountingDown = true
-        
-        // Garante que o jogo não esteja rodando enquanto conta
-        server.stopGameLoop()
-        
-        Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in
-            if countdown > 1 {
-                countdown -= 1
-            } else {
-                timer.invalidate()
-                isCountingDown = false
-                // Agora sim começa o jogo
-                server.startGameLoop()
-            }
-        }
-    }
-}

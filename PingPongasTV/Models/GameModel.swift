@@ -2,8 +2,8 @@
 //  GameModel.swift
 //  PingPongasTV
 //
-//  Created by Gustavo Souza Santana on 11/11/25.
-//
+//  Created by Gustavo Souza Santana.
+//  Created by Ruan Lopes Viana.
 
 import Foundation
 import SwiftData

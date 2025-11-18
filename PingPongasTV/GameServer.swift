@@ -2,11 +2,8 @@
 //  GameServer.swift
 //  PingPongasTV
 //
-//  Created by Gustavo Souza Santana on 11/11/25.
-//
-//  CORRIGIDO: 'Hashable' e 'contentProcessed'
-//
-
+//  Created by Gustavo Souza Santana.
+//  Created by Ruan Lopes Viana.
 
 import Foundation
 import Network
@@ -14,355 +11,252 @@ import Combine
 import CoreGraphics
 
 class GameServer: ObservableObject {
+    
+    // MARK: - Propriedades de Rede
     private var listener: NWListener?
     private var isListening = false
-    
-    private var players: [Int: NWConnection] = [:]
     private let maxPlayers = 2
+    
+    private var connections: [ObjectIdentifier: NWConnection] = [:]
+    
+    private struct PlayerConnectionInfo {
+        var player: PlayerModel
+        var side: String
+        var connection: NWConnection
+    }
+    private var playerInfos: [ObjectIdentifier: PlayerConnectionInfo] = [:]
+    
+    // MARK: - Estado do Jogo (Publicado para a View)
+    
     @Published var game = GameModel(sideL: [], scoreL: 0, sideR: [], scoreR: 0)
-    private var connectionToPlayer: [ObjectIdentifier: (player: PlayerModel, side: String)] = [:]
-        
     @Published var allPlayersReady: Bool = false
-
-    // --- ESTADO DO JOGO (Para a View) ---
+    @Published var isGameRunning = false
+    
+    // Posições Visuais
     @Published var paddleLeftY: CGFloat = 0
     @Published var paddleRightY: CGFloat = 0
     @Published var ballPosition: CGPoint = .zero
     @Published var scoreLeft: Int = 0
     @Published var scoreRight: Int = 0
-    @Published var isGameRunning = false
     
-    // --- Propriedades do Jogo/Física ---
+    // MARK: - Configurações Físicas
+    
     private var gameTimer: AnyCancellable?
-    private var ballVelocity = CGVector(dx: 6, dy: 4)
-    var sceneSize: CGSize = .zero
-    let paddleHeight: CGFloat = 100
-    let paddleWidth: CGFloat = 20
-    let ballSize: CGFloat = 20
-
+    private var ballVelocity = CGVector(dx: 0, dy: 0)
     
-    // --- Lógica de Rede ---
+    // Tamanho da tela (será preenchido pela View)
+    @Published var sceneSize: CGSize = .zero
+    
+    // Dimensões dos objetos
+    let paddleHeight: CGFloat = 140
+    let paddleWidth: CGFloat = 20
+    let ballSize: CGFloat = 25
+    
+    // MARK: - Inicialização do Servidor
     
     func start(screenSize: CGSize) {
         guard !isListening else { return }
         
         self.sceneSize = screenSize
-        self.ballPosition = CGPoint(x: screenSize.width / 2, y: screenSize.height / 2)
-        
-        // Y ABSOLUTO (centro da tela)
-        self.paddleLeftY  = screenSize.height / 2
-        self.paddleRightY = screenSize.height / 2
-        
-        self.scoreLeft = 0
-        self.scoreRight = 0
-        
+        resetPositions()
         
         isListening = true
+        print("📡 Iniciando servidor Pong...")
         
-        print("Iniciando listener...")
         let params = NWParameters.tcp
         params.allowLocalEndpointReuse = true
         
         do {
             listener = try NWListener(using: params)
         } catch {
-            print("Erro ao iniciar listener:", error)
+            print("❌ Erro ao iniciar listener:", error)
             return
         }
         
+        // Configuração do Bonjour (para o iPhone encontrar)
         listener?.service = NWListener.Service(
-            name: "AppleTV-PoC",
+            name: "AppleTV-Pong",
             type: "_pocgame._tcp",
             domain: nil,
             txtRecord: nil
         )
         
         listener?.stateUpdateHandler = { state in
-            print("Listener mudou:", state)
+            print("📡 Estado do Listener:", state)
         }
         
         listener?.newConnectionHandler = { [weak self] connection in
-            print("Novo iPhone conectado:", connection)
+            print("📱 Nova conexão recebida:", connection)
             self?.setupClient(connection)
         }
         
         listener?.start(queue: .main)
-        print("Servidor iniciado e anunciado via Bonjour.")
     }
     
+    private func resetPositions() {
+        self.ballPosition = CGPoint(x: sceneSize.width / 2, y: sceneSize.height / 2)
+        self.paddleLeftY = sceneSize.height / 2
+        self.paddleRightY = sceneSize.height / 2
+    }
+    
+    // MARK: - Gerenciamento de Clientes
+    
     private func setupClient(_ connection: NWConnection) {
-        guard players.count < maxPlayers else {
-            print("Jogo cheio, rejeitando conexão.")
+        guard connections.count < maxPlayers else {
+            print("⛔ Jogo cheio. Rejeitando conexão.")
             connection.cancel()
             return
         }
         
-        let playerIndex = players.count
-        
-        players[playerIndex] = connection
-        
-        print("Cliente é Jogador \(playerIndex)")
+        let id = ObjectIdentifier(connection)
+        connections[id] = connection
         
         connection.stateUpdateHandler = { [weak self] state in
-            DispatchQueue.main.async {
-                print("Cliente \(playerIndex) mudou: \(state)")
-                switch state {
-                case .failed(let error):
-                    print("❌ Falha no cliente \(playerIndex): \(error)")
-                    self?.handleClientDisconnect(connection)
-                case .cancelled:
-                    print("🚪 Cliente \(playerIndex) desconectou.")
-                    self?.handleClientDisconnect(connection)
-                default:
-                    break
-                }
+            switch state {
+            case .failed(let error):
+                print("❌ Erro na conexão cliente:", error)
+                self?.handleClientDisconnect(connection)
+            case .cancelled:
+                print("🚪 Cliente desconectou.")
+                self?.handleClientDisconnect(connection)
+            default:
+                break
             }
         }
-
         
         connection.start(queue: .main)
-        receive(connection)
-
-        if players.count == maxPlayers {
-            print("2 jogadores conectados → parando listener e iniciando jogo!")
-            listener?.cancel()
-            listener = nil
-            isListening = false
-        }
+        receive(from: connection)
     }
     
     private func handleClientDisconnect(_ connection: NWConnection) {
+        let id = ObjectIdentifier(connection)
+        
+        // Remove dados do jogador
+        if let info = playerInfos[id] {
+            print("👤 Jogador saiu: \(info.player.name)")
+            removePlayerFromGameModel(name: info.player.name)
+            playerInfos.removeValue(forKey: id)
+        }
+        
+        connections.removeValue(forKey: id)
         connection.cancel()
-        connection.stateUpdateHandler = nil
         
-        // Encontrar playerIndex
-        if let playerIndex = players.first(where: { $0.value === connection })?.key {
-            print("Jogador \(playerIndex) desconectou.")
-            players.removeValue(forKey: playerIndex)
-        }
-        
-        // --- Remover do mapeamento de readiness ---
-        let id = ObjectIdentifier(connection)
-        if let info = connectionToPlayer[id] {
-            removePlayer(info.player, from: info.side)
-            connectionToPlayer.removeValue(forKey: id)
-        }
-        
-        // --- ATUALIZAR READINESS (zera todo mundo) ---
+        // Reseta estado de prontidão
         resetAllPlayersReady()
-
         stopGameLoop()
-
-        if !isListening {
-            print("Perdemos um jogador → reiniciando listener...")
-            start(screenSize: self.sceneSize)
+        
+        // Se ficar vazio, reinicia posições
+        if connections.isEmpty {
+            resetPositions()
+            scoreLeft = 0
+            scoreRight = 0
         }
     }
-
-
-
     
-    private func receive(_ connection: NWConnection) {
-        connection.receive(minimumIncompleteLength: 1, maximumLength: 2048) { [weak self] data, _, _, error in
-            if let data = data, let str = String(data: data, encoding: .utf8) {
-                self?.handleMessage(str, from: connection)
-                self?.handlePlayerInput(command: str, from: connection)
+    private func receive(from connection: NWConnection) {
+        connection.receive(minimumIncompleteLength: 1, maximumLength: 1024) { [weak self] data, _, _, error in
+            if let data = data, let message = String(data: data, encoding: .utf8) {
+                self?.processMessage(message, from: connection)
             }
-            if let error = error {
-                print("⚠️ Erro na conexão: \(error)")
-                self?.handleClientDisconnect(connection)
+            
+            if error == nil {
+                self?.receive(from: connection)
             } else {
-                self?.receive(connection)
+                self?.handleClientDisconnect(connection)
             }
         }
     }
     
-    private func handleMessage(_ message: String, from connection: NWConnection) {
-            print("Recebido:", message)
-            let parts = message.split(separator: ":")
-            guard parts.count >= 2 else { return }
-            
-            let command = parts[0]
-            let id = ObjectIdentifier(connection)
-            
-            switch command {
-            case "JOIN":
-                if parts.count == 3 {
-                    let side = String(parts[1])
-                    let name = String(parts[2])
-                    let player = PlayerModel(name: name)
-                    
-                    if side == "left" {
-                        game.sideL.append(player)
-                    } else if side == "right" {
-                        game.sideR.append(player)
-                    }
-                    connectionToPlayer[id] = (player, side)
-                    print("Jogador \(name) entrou no lado \(side)")
-                }
-                
-            case "LEAVE":
-                if parts.count == 2 {
-                    let name = String(parts[1])
-
-                    print("Jogador \(name) saiu manualmente")
-
-                    // Remove o jogador das listas de lados
-                    removePlayerByName(name)
-
-                    // Remove do mapa de conexões
-                    connectionToPlayer = connectionToPlayer.filter { $0.value.player.name != name }
-
-                    // Zera o READY de todos que sobraram
-                    resetAllPlayersReady()
-                }
-
-            case "READY":
-                if parts.count == 2 {
-                    let readyFlag = String(parts[1]) == "1"
-                    
-                    if let info = connectionToPlayer[id] {
-                        let playerName = info.player.name
-                        info.player.isReady = readyFlag
-                        connectionToPlayer[id] = info
-                        
-                        print("Jogador \(playerName) está \(readyFlag ? "pronto ✅" : "não pronto ❌")")
-                    } else {
-                        print("⚠️ Jogador não encontrado para READY")
-                    }
-
-                    updateAllPlayersReady()
-                }
-            default:
-                print("Comando desconhecido:", message)
-            }
-        }
+    // MARK: - Processamento de Mensagens
     
-    
-    private func removePlayer(_ player: PlayerModel, from side: String) {
-            if side == "left" {
-                game.sideL.removeAll { $0.name == player.name }
-            } else if side == "right" {
-                game.sideR.removeAll { $0.name == player.name }
-            }
-        }
-
-        private func removePlayerByName(_ name: String) {
-            game.sideL.removeAll { $0.name == name }
-            game.sideR.removeAll { $0.name == name }
-        }
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    // --- Lógica de Input ---
-    
-    private func handlePlayerInput(command: String, from connection: NWConnection) {
-        let moveAmount: CGFloat = 25.0
-        let halfPaddle = paddleHeight / 2
-        
-        // limites para o centro da raquete
-        let minY = halfPaddle
-        let maxY = sceneSize.height - halfPaddle
-
-        let id = ObjectIdentifier(connection)
-        
-        guard let info = connectionToPlayer[id] else {
-            print("⚠️ handlePlayerInput: conexão sem side associado (JOIN não recebido?)")
+    private func processMessage(_ message: String, from connection: NWConnection) {
+        if message == "up" || message == "down" {
+            handleGameplayInput(command: message, from: connection)
             return
         }
         
-        let side = info.side
+        // Comandos de protocolo (JOIN, READY, etc)
+        let parts = message.split(separator: ":").map(String.init)
+        guard !parts.isEmpty else { return }
+        
+        let command = parts[0]
+        let id = ObjectIdentifier(connection)
+        
+        switch command {
+        case "JOIN":
+            // Formato: JOIN:side:name
+            if parts.count >= 3 {
+                let side = parts[1]
+                let name = parts[2]
+                let newPlayer = PlayerModel(name: name)
+                
+                // Salva infos
+                let info = PlayerConnectionInfo(player: newPlayer, side: side, connection: connection)
+                playerInfos[id] = info
+                
+                // Atualiza Model visual
+                if side == "left" { game.sideL.append(newPlayer) }
+                else { game.sideR.append(newPlayer) }
+                
+                print("✅ \(name) entrou no time \(side)")
+            }
+            
+        case "READY":
+            // Formato: READY:1 ou READY:0
+            if parts.count >= 2, var info = playerInfos[id] {
+                let isReady = (parts[1] == "1")
+                info.player.isReady = isReady
+                playerInfos[id] = info
+                
+                print("⚠️ \(info.player.name) está pronto? \(isReady)")
+                checkAllPlayersReady()
+            }
+            
+        default:
+            break
+        }
+    }
+    
+    private func handleGameplayInput(command: String, from connection: NWConnection) {
+        guard let info = playerInfos[ObjectIdentifier(connection)] else { return }
+        
+        let speed: CGFloat = 35.0
+        let halfPaddle = paddleHeight / 2
+        let maxY = sceneSize.height - halfPaddle
+        let minY = halfPaddle
         
         DispatchQueue.main.async {
-            if side == "left" {
-                var newY = self.paddleLeftY
-                if command == "up" {
-                    newY -= moveAmount
-                } else if command == "down" {
-                    newY += moveAmount
-                }
-                self.paddleLeftY = min(max(newY, minY), maxY)
-                
-            } else if side == "right" {
-                var newY = self.paddleRightY
-                if command == "up" {
-                    newY -= moveAmount
-                } else if command == "down" {
-                    newY += moveAmount
-                }
-                self.paddleRightY = min(max(newY, minY), maxY)
-            }
-        }
-    }
-
-
-
-
-    
-    
-    
-    
-    
-    private func updateAllPlayersReady() {
-        let players = connectionToPlayer.values.map { $0.player }
-
-        // Se ninguém está conectado -> não está pronto
-        guard !players.isEmpty else {
-            allPlayersReady = false
-            print("🔄 allPlayersReady → false (nenhum jogador conectado)")
-            return
-        }
-
-        let everyoneReady = players.allSatisfy { $0.isReady }
-
-        if allPlayersReady != everyoneReady {
-            allPlayersReady = everyoneReady
-            print("🔄 allPlayersReady → \(everyoneReady)")
-            
-            if everyoneReady {
-                print("🚀 Todos prontos! Enviando START para os iPhones...")
-                broadcast(message: "START")
+            if info.side == "left" {
+                var y = self.paddleLeftY
+                if command == "up" { y -= speed }
+                if command == "down" { y += speed }
+                self.paddleLeftY = min(max(y, minY), maxY)
             } else {
-                broadcast(message: "STOP")
+                var y = self.paddleRightY
+                if command == "up" { y -= speed }
+                if command == "down" { y += speed }
+                self.paddleRightY = min(max(y, minY), maxY)
             }
         }
     }
-    private func resetAllPlayersReady() {
-        // Zera o isReady de todos os jogadores
-        for (key, info) in connectionToPlayer {
-            info.player.isReady = false
-            connectionToPlayer[key] = info
-        }
-
-        // Recalcula o allPlayersReady (vai virar false e mandar STOP)
-        updateAllPlayersReady()
-    }
-
-
-
-    // --- Lógica do "Game Loop" (sem alterações) ---
+    
+    // MARK: - Lógica de Jogo (Game Loop)
     
     func startGameLoop() {
         guard !isGameRunning else { return }
+        print("🚀 Iniciando Loop do Jogo")
         
         isGameRunning = true
-        self.gameTimer = Timer.publish(every: 1/60, on: .main, in: .common)
+        
+        // Define velocidade inicial (para a direita ou esquerda aleatoriamente)
+        let startDir: CGFloat = Bool.random() ? 1 : -1
+        resetBallPhysics(direction: startDir)
+        
+        // Timer de 60 FPS
+        gameTimer = Timer.publish(every: 1/60, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
-                self?.updateGame()
+                self?.updatePhysics()
             }
     }
     
@@ -372,92 +266,114 @@ class GameServer: ObservableObject {
         gameTimer = nil
     }
     
-    private func updateGame() {
-        guard isGameRunning, sceneSize != .zero else { return }
+    private func updatePhysics() {
+        guard isGameRunning, sceneSize.width > 0 else { return }
         
-        // 1. Atualiza posição
+        // 1. Aplica velocidade
         ballPosition.x += ballVelocity.dx
         ballPosition.y += ballVelocity.dy
-
-        let ballRadius = ballSize / 2
         
-        // 2. Bate no teto/chão
-        if ballPosition.y <= ballRadius || ballPosition.y >= (sceneSize.height - ballRadius) {
+        let r = ballSize / 2
+        
+        // 2. Colisão Teto/Chão
+        if ballPosition.y <= r {
+            ballPosition.y = r + 1
+            ballVelocity.dy *= -1
+        } else if ballPosition.y >= sceneSize.height - r {
+            ballPosition.y = sceneSize.height - r - 1
             ballVelocity.dy *= -1
         }
         
-        // 3. Retângulo da bola
-        let ballRect = CGRect(
-            x: ballPosition.x - ballRadius,
-            y: ballPosition.y - ballRadius,
-            width: ballSize,
-            height: ballSize
-        )
+        // 3. Define Rects para Colisão
+        let ballRect = CGRect(x: ballPosition.x - r, y: ballPosition.y - r, width: ballSize, height: ballSize)
         
-        // 4. Raquetes – Y já é o centro absoluto
-        let leftPaddleCenterY  = paddleLeftY
-        let rightPaddleCenterY = paddleRightY
-
-        let paddleLeftRect = CGRect(
-            x: 50,
-            y: leftPaddleCenterY - (paddleHeight / 2),
-            width: paddleWidth,
-            height: paddleHeight
-        )
-
-        let paddleRightRect = CGRect(
-            x: sceneSize.width - 50 - paddleWidth,
-            y: rightPaddleCenterY - (paddleHeight / 2),
-            width: paddleWidth,
-            height: paddleHeight
-        )
+        let pLeftRect = CGRect(x: 50, y: paddleLeftY - paddleHeight/2, width: paddleWidth, height: paddleHeight)
+        let pRightRect = CGRect(x: sceneSize.width - 50 - paddleWidth, y: paddleRightY - paddleHeight/2, width: paddleWidth, height: paddleHeight)
         
-        // 5. Colisão com raquete esquerda
-        if ballRect.intersects(paddleLeftRect) && ballVelocity.dx < 0 {
-            ballPosition.x = paddleLeftRect.maxX + ballRadius
-            ballVelocity.dx *= -1
+        // 4. Colisão Raquete Esquerda
+        if ballRect.intersects(pLeftRect) && ballVelocity.dx < 0 {
+            ballVelocity.dx *= -1.05
+            ballVelocity.dy *= 1.05
+            ballPosition.x = pLeftRect.maxX + r + 2
         }
         
-        // 6. Colisão com raquete direita
-        if ballRect.intersects(paddleRightRect) && ballVelocity.dx > 0 {
-            ballPosition.x = paddleRightRect.minX - ballRadius
-            ballVelocity.dx *= -1
+        // 5. Colisão Raquete Direita
+        if ballRect.intersects(pRightRect) && ballVelocity.dx > 0 {
+            ballVelocity.dx *= -1.05
+            ballVelocity.dy *= 1.05
+            ballPosition.x = pRightRect.minX - r - 2
         }
         
-        // 7. Pontuação
-        if ballRect.maxX < 0 {
+        // 6. Pontuação (Bola saiu da tela)
+        if ballPosition.x < -r {
             scoreRight += 1
-            resetBall(direction: 1)
-        }
-        
-        if ballRect.minX > sceneSize.width {
+            handleScore(winnerSide: "right")
+        } else if ballPosition.x > sceneSize.width + r {
             scoreLeft += 1
-            resetBall(direction: -1)
+            handleScore(winnerSide: "left")
         }
     }
-
     
-    private func resetBall(direction: Int) {
+    private func handleScore(winnerSide: String) {
         stopGameLoop()
         
+        // Reinicia a bola no centro
         ballPosition = CGPoint(x: sceneSize.width / 2, y: sceneSize.height / 2)
-        ballVelocity.dx = 6 * CGFloat(direction)
-        ballVelocity.dy = [4, -4, 3, -3].randomElement() ?? 4
         
-        // volta as raquetes pro centro visual
-        paddleLeftY  = sceneSize.height / 2
-        paddleRightY = sceneSize.height / 2
+        // A bola vai na direção de quem sofreu o ponto
+        let nextDir: CGFloat = (winnerSide == "left") ? 1 : -1
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            self.startGameLoop()
+        // Pequena pausa antes de recomeçar
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            if self.allPlayersReady {
+                self.isGameRunning = true
+                self.resetBallPhysics(direction: nextDir)
+                
+                // Recria o timer
+                self.gameTimer = Timer.publish(every: 1/60, on: .main, in: .common)
+                    .autoconnect()
+                    .sink { [weak self] _ in self?.updatePhysics() }
+            }
         }
     }
-
     
-    func broadcast(message: String) {
+    private func resetBallPhysics(direction: CGFloat) {
+        let baseSpeed: CGFloat = 9.0
+        ballVelocity = CGVector(dx: baseSpeed * direction, dy: CGFloat.random(in: -5...5))
+    }
+    
+    // MARK: - Métodos Auxiliares
+    
+    private func removePlayerFromGameModel(name: String) {
+        game.sideL.removeAll { $0.name == name }
+        game.sideR.removeAll { $0.name == name }
+    }
+    
+    private func checkAllPlayersReady() {
+        let readyCount = playerInfos.values.filter { $0.player.isReady }.count
+        let allReady = (readyCount == 2)
+        
+        if allPlayersReady != allReady {
+            allPlayersReady = allReady
+            if allReady {
+                broadcast("START")
+            } else {
+                broadcast("STOP")
+            }
+        }
+    }
+    
+    private func resetAllPlayersReady() {
+        for id in playerInfos.keys {
+            playerInfos[id]?.player.isReady = false
+        }
+        checkAllPlayersReady()
+    }
+    
+    func broadcast(_ message: String) {
         let data = message.data(using: .utf8)!
-        for (_, client) in players {
-            client.send(content: data, completion: NWConnection.SendCompletion.contentProcessed { _ in })
+        for conn in connections.values {
+            conn.send(content: data, completion: NWConnection.SendCompletion.contentProcessed { _ in })
         }
     }
 }
