@@ -48,9 +48,9 @@ class GameServer: ObservableObject {
     @Published var sceneSize: CGSize = .zero
     
     // Dimensões dos objetos
-    let paddleHeight: CGFloat = 140
-    let paddleWidth: CGFloat = 20
-    let ballSize: CGFloat = 25
+    let paddleHeight: CGFloat = 200
+    let paddleWidth: CGFloat = 30
+    let ballSize: CGFloat = 40
     
     // MARK: - Inicialização do Servidor
     
